@@ -18,3 +18,5 @@ tmp
 %LocalAppData%
 data
 pkg
+
+node_modules
