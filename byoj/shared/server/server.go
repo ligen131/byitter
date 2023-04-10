@@ -10,7 +10,8 @@ import (
 )
 
 type Server struct {
-	Port int `json:"port"`
+	Hostname string `yaml:"hostname"`
+	Port     int    `yaml:"port"`
 }
 
 func Run(s Server) error {
@@ -19,9 +20,18 @@ func Run(s Server) error {
 	// Router and middleware
 	router.Load(e)
 
-	err := e.Start(":" + strconv.Itoa(s.Port))
+	// Default Configurations
+	if s.Hostname == "" {
+		s.Hostname = "127.0.0.1"
+	}
+	if s.Port == 0 {
+		s.Port = 3435
+	}
+
+	address := s.Hostname + ":" + strconv.Itoa(s.Port)
+	err := e.Start(address)
 	if err != nil {
-		logs.Error("Server run failed at port "+strconv.Itoa(s.Port), zap.Error(err))
+		logs.Error("Server run failed at "+address+". ", zap.Error(err))
 		return err
 	}
 	return nil

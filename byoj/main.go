@@ -1,9 +1,15 @@
 package main
 
-import "byoj/shared/server"
+import (
+	"byoj/shared/server"
+	"byoj/shared/yamlconfig"
+)
 
 func main() {
-	server.Run(server.Server{
-		Port: 3435,
-	})
+	configuration, err := yamlconfig.ConfigLoad("config.yml")
+	if err != nil {
+		panic(err)
+	}
+
+	server.Run(configuration.Server)
 }
