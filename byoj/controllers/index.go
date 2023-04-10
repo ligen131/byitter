@@ -7,7 +7,15 @@ import (
 	"github.com/labstack/echo"
 )
 
+type documentLink struct {
+	Doc string `json:"document"`
+}
+
+type link struct {
+	Link documentLink `json:"link"`
+}
+
 func IndexGET(c echo.Context) error {
 	logs.Debug("GET /")
-	return c.String(http.StatusOK, "Hello, the world!")
+	return c.JSON(http.StatusOK, link{Link: documentLink{Doc: "// This must be document link."}})
 }
