@@ -13,7 +13,8 @@ No. | Project | Completed
 Using following command to commit:
 
 ```shell
-npm run commit
+$ git add .
+$ npm run commit
 ```
 
 ## Project Logs

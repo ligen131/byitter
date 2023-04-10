@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "commit": "git add . && cz-customizable",
+    "commit": "cz-customizable",
     "prepare": "husky install"
   },
   "devDependencies": {
