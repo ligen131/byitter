@@ -1,6 +1,7 @@
 package yamlconfig
 
 import (
+	"byoj/shared/database"
 	"byoj/shared/server"
 	"byoj/utils/logs"
 
@@ -10,7 +11,8 @@ import (
 )
 
 type Configuration struct {
-	Server server.Server `yaml:"server"`
+	Server   server.Server     `yaml:"server"`
+	Database database.Database `yaml:"database"`
 }
 
 func ConfigLoad(path string) (Configuration, error) {

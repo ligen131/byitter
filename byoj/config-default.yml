@@ -1,3 +1,11 @@
 server:
     hostname: 127.0.0.1
     port: 3435
+
+database:
+    hostname: 127.0.0.1
+    port: 5432
+    user: postgres
+    password: password
+    sslMode: false
+    timeZone: Asia/Shanghai
