@@ -1,11 +1,43 @@
 package model
 
 import (
-	"byoj/shared/database"
+	"context"
+	"time"
 
 	"gorm.io/gorm"
 )
 
-func InitModel(db *gorm.DB) error {
-	return database.AutoMigrateTable(db, &User{})
+var (
+	db *gorm.DB
+)
+
+type Model struct {
+	tx      *gorm.DB
+	context context.Context
+	cancel  context.CancelFunc
+}
+
+func GetModel() *Model {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	return &Model{
+		tx:      db.Begin().WithContext(ctx),
+		context: ctx,
+		cancel:  cancel,
+	}
+}
+
+func InitModel() error {
+	return AutoMigrateTable(&User{})
+}
+
+func (m *Model) Close() {
+	if r := recover(); r != nil {
+		m.tx.Rollback()
+	}
+	m.cancel()
+}
+
+func (m *Model) Abort() {
+	m.tx.Rollback()
+	m.cancel()
 }

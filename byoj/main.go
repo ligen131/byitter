@@ -2,7 +2,6 @@ package main
 
 import (
 	"byoj/model"
-	"byoj/shared/database"
 	"byoj/shared/server"
 	"byoj/shared/yamlconfig"
 )
@@ -13,12 +12,12 @@ func main() {
 		panic(err)
 	}
 
-	db, err := database.Connect(configuration.Database)
+	err = model.Connect(configuration.Database)
 	if err != nil {
 		panic(err)
 	}
 
-	err = model.InitModel(db)
+	err = model.InitModel()
 	if err != nil {
 		panic(err)
 	}

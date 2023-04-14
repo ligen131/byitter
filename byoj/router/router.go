@@ -12,4 +12,6 @@ func Load(e *echo.Echo) {
 
 func routes(e *echo.Echo) {
 	e.GET("/", controllers.IndexGET)
+
+	e.POST("/user/register", controllers.UserRegisterPOST)
 }

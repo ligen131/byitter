@@ -1,4 +1,4 @@
-package database
+package model
 
 import (
 	"byoj/utils/logs"
@@ -18,7 +18,7 @@ type Database struct {
 	TimeZone string `yaml:"timeZone"`
 }
 
-func Connect(d Database) (*gorm.DB, error) {
+func Connect(d Database) error {
 	const DbName = "byoj"
 	isSSL := "disable"
 	if d.SslMode {
@@ -31,15 +31,16 @@ func Connect(d Database) (*gorm.DB, error) {
 		" port=" + strconv.Itoa(d.Port) +
 		" sslmode=" + isSSL +
 		" TimeZone=" + d.TimeZone
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	var err error
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		logs.Error("Failed to connect database "+DbName+".", zap.Error(err))
 	}
-	return db, err
+	return err
 }
 
 // Almost used for creating tables
-func AutoMigrateTable(db *gorm.DB, dst ...interface{}) error {
+func AutoMigrateTable(dst ...interface{}) error {
 	for _, d := range dst {
 		err := db.Migrator().AutoMigrate(d)
 		if err != nil {
