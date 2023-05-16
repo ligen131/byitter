@@ -27,7 +27,17 @@ func GetModel() *Model {
 }
 
 func InitModel() error {
-	return AutoMigrateTable(&User{})
+	err := AutoMigrateTable(&User{})
+	if err != nil {
+		return err
+	}
+	
+	err = AutoMigrateTable(&Post{})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (m *Model) Close() {

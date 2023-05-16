@@ -27,4 +27,12 @@ func routes(e *echo.Echo) {
 		userGroup.POST("/login", controllers.UserLoginPOST)
 		userGroup.GET("/isauth", controllers.UserIsAuthGET, middleware.TokenVerificationMiddleware)
 	}
+
+	postGroup := e.Group("/post")
+	{
+		postGroup.POST("", controllers.PostPOST, middleware.TokenVerificationMiddleware)
+		postGroup.POST("/", controllers.PostPOST, middleware.TokenVerificationMiddleware)
+		postGroup.GET("", controllers.PostGET)
+		postGroup.GET("/", controllers.PostGET)
+	}
 }
