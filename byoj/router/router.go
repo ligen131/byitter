@@ -21,6 +21,8 @@ func routes(e *echo.Echo) {
 
 	userGroup := e.Group("/user")
 	{
+		userGroup.GET("", controllers.UserGET)
+		userGroup.GET("/", controllers.UserGET)
 		userGroup.POST("/register", controllers.UserRegisterPOST)
 		userGroup.POST("/login", controllers.UserLoginPOST)
 		userGroup.GET("/isauth", controllers.UserIsAuthGET, middleware.TokenVerificationMiddleware)

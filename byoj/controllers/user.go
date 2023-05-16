@@ -247,3 +247,84 @@ func UserIsAuthGET(c echo.Context) error {
 		},
 	})
 }
+
+type UserGETResponse struct {
+	ID       uint32 `json:"user_id"   `
+	UserName string `json:"user_name" `
+	Email    string `json:"email"     `
+	RealName string `json:"real_name" `
+	Bio      string `json:"bio"       `
+	Verified bool   `json:"verified"  `
+	Deleted  bool   `json:"deleted"   `
+}
+
+func UserGET(c echo.Context) error {
+	logs.Debug("GET /user")
+
+	userRequest := model.User{}
+	err := c.Bind(&userRequest)
+	if err != nil {
+		logs.Warn("Failed to parse request data.", zap.Error(err))
+		return c.JSON(http.StatusBadRequest, ResponseStruct{
+			Code:    http.StatusBadRequest,
+			Message: "Bad Request",
+			Data: ErrorMessage{
+				Message: "Failed to parse request data.",
+				Err:     err.Error(),
+			},
+		})
+	}
+	logs.Debug("User struct:", zap.Any("user", userRequest))
+
+	user := model.User{}
+	if userRequest.ID != 0 {
+		user, err = model.FindUserByID(userRequest.ID)
+	} else if userRequest.Email != "" {
+		user, err = model.FindUserByEmail(userRequest.Email)
+	} else if userRequest.UserName != "" {
+		user, err = model.FindUserByName(userRequest.UserName)
+	} else {
+		return c.JSON(http.StatusBadRequest, ResponseStruct{
+			Code:    http.StatusBadRequest,
+			Message: "Bad Request",
+			Data: ErrorMessage{
+				Message: "User ID, email or username is required.",
+				Err:     "",
+			},
+		})
+	}
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.JSON(http.StatusBadRequest, ResponseStruct{
+				Code:    http.StatusBadRequest,
+				Message: "Bad Request",
+				Data: ErrorMessage{
+					Message: "User not found.",
+					Err:     err.Error(),
+				},
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, ResponseStruct{
+			Code:    http.StatusInternalServerError,
+			Message: "Internal Server Error",
+			Data: ErrorMessage{
+				Message: "Find user failed.",
+				Err:     err.Error(),
+			},
+		})
+	}
+
+	return c.JSON(http.StatusOK, ResponseStruct{
+		Code:    http.StatusOK,
+		Message: "OK",
+		Data: UserGETResponse{
+			ID:       user.ID,
+			UserName: user.UserName,
+			Email:    user.Email,
+			RealName: user.RealName,
+			Bio:      user.Bio,
+			Verified: user.Verified,
+			Deleted:  user.Deleted,
+		},
+	})
+}
