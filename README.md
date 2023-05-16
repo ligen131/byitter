@@ -1,4 +1,4 @@
-# byitter
+# BYOJ
 
 A simple web application.
 
