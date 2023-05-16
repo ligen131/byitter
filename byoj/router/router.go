@@ -17,8 +17,12 @@ func routes(e *echo.Echo) {
 
 	e.GET("/", controllers.IndexGET)
 
+	e.GET("/health", controllers.HealthGET)
+
 	userGroup := e.Group("/user")
-	userGroup.POST("/register", controllers.UserRegisterPOST)
-	userGroup.POST("/login", controllers.UserLoginPOST)
-	userGroup.GET("/isauth", controllers.UserIsAuthGET, middleware.TokenVerificationMiddleware)
+	{
+		userGroup.POST("/register", controllers.UserRegisterPOST)
+		userGroup.POST("/login", controllers.UserLoginPOST)
+		userGroup.GET("/isauth", controllers.UserIsAuthGET, middleware.TokenVerificationMiddleware)
+	}
 }
