@@ -3,6 +3,7 @@ module byoj
 go 1.18
 
 require (
+	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/gookit/config/v2 v2.2.1
 	github.com/labstack/echo v3.3.10+incompatible
 	go.uber.org/zap v1.24.0
@@ -11,6 +12,7 @@ require (
 )
 
 require (
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/fatih/color v1.14.1 // indirect
 	github.com/goccy/go-yaml v1.10.0 // indirect
 	github.com/gookit/color v1.5.2 // indirect

@@ -2,8 +2,10 @@ package router
 
 import (
 	"byoj/controllers"
+	"byoj/controllers/middleware"
 
 	"github.com/labstack/echo"
+	echomw "github.com/labstack/echo/middleware"
 )
 
 func Load(e *echo.Echo) {
@@ -11,7 +13,12 @@ func Load(e *echo.Echo) {
 }
 
 func routes(e *echo.Echo) {
+	e.Use(echomw.Recover())
+
 	e.GET("/", controllers.IndexGET)
 
-	e.POST("/user/register", controllers.UserRegisterPOST)
+	userGroup := e.Group("/user")
+	userGroup.POST("/register", controllers.UserRegisterPOST)
+	userGroup.POST("/login", controllers.UserLoginPOST)
+	userGroup.GET("/isauth", controllers.UserIsAuthGET, middleware.TokenVerificationMiddleware)
 }

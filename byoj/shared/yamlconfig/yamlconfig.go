@@ -1,6 +1,7 @@
 package yamlconfig
 
 import (
+	"byoj/controllers/auth"
 	"byoj/model"
 	"byoj/shared/server"
 	"byoj/utils/logs"
@@ -11,8 +12,9 @@ import (
 )
 
 type Configuration struct {
-	Server   server.Server     `yaml:"server"`
-	Database model.Database `yaml:"database"`
+	Server        server.Server      `yaml:"server"`
+	Database      model.Database     `yaml:"database"`
+	Authorization auth.Authorization `yaml:"Authorization"`
 }
 
 func ConfigLoad(path string) (Configuration, error) {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"byoj/controllers/auth"
 	"byoj/model"
 	"byoj/shared/server"
 	"byoj/shared/yamlconfig"
@@ -18,6 +19,11 @@ func main() {
 	}
 
 	err = model.InitModel()
+	if err != nil {
+		panic(err)
+	}
+
+	err = auth.InitAuthorization(configuration.Authorization)
 	if err != nil {
 		panic(err)
 	}

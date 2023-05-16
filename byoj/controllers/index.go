@@ -17,5 +17,13 @@ type link struct {
 
 func IndexGET(c echo.Context) error {
 	logs.Debug("GET /")
-	return c.JSON(http.StatusOK, link{Link: documentLink{Doc: "// This must be document link."}})
+	return c.JSON(http.StatusOK, ResponseStruct{
+		Code:    http.StatusOK,
+		Message: "OK",
+		Data: link{
+			Link: documentLink{
+				Doc: "// Document link here.",
+			},
+		},
+	})
 }
