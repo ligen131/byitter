@@ -92,3 +92,18 @@ func ResponseUnauthorized(c echo.Context, errMessage string, err error) error {
 		},
 	})
 }
+
+func ResponseForbidden(c echo.Context, errMessage string, err error) error {
+	Err := ""
+	if err != nil {
+		Err = err.Error()
+	}
+	return c.JSON(http.StatusForbidden, ResponseStruct{
+		Code:    http.StatusForbidden,
+		Message: "Forbidden",
+		Data: ErrorMessage{
+			Message: errMessage,
+			Err:     Err,
+		},
+	})
+}

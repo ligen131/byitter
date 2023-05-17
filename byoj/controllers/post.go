@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"byoj/controllers/auth"
 	"byoj/model"
 	"byoj/utils/logs"
 	"time"
@@ -50,6 +51,14 @@ func PostPOST(c echo.Context) error {
 
 	if !user.Verified {
 		return ResponseBadRequest(c, "This user has not been verified.", nil)
+	}
+
+	claims, err := auth.GetClaimsFromHeader(c)
+	if err != nil {
+		return ResponseBadRequest(c, err.Error(), nil)
+	}
+	if claims.ID != user.ID || claims.UserName != user.UserName {
+		return ResponseForbidden(c, "You cannot post other's post.", nil)
 	}
 
 	post, err := model.CreatePost(user.ID, time.Now(), postRequest.Content, true)
