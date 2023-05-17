@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"byoj/utils/logs"
-	"net/http"
 
 	"github.com/labstack/echo"
 )
@@ -17,13 +16,10 @@ type link struct {
 
 func IndexGET(c echo.Context) error {
 	logs.Debug("GET /")
-	return c.JSON(http.StatusOK, ResponseStruct{
-		Code:    http.StatusOK,
-		Message: "OK",
-		Data: link{
-			Link: documentLink{
-				Doc: "// Document link here.",
-			},
+
+	return ResponseOK(c, link{
+		Link: documentLink{
+			Doc: "// Document link here.",
 		},
 	})
 }

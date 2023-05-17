@@ -3,7 +3,6 @@ package controllers
 import (
 	"byoj/model"
 	"byoj/utils/logs"
-	"net/http"
 	"time"
 
 	"github.com/labstack/echo"
@@ -28,100 +27,40 @@ func PostPOST(c echo.Context) error {
 	logs.Debug("POST /post")
 
 	postRequest := PostCreateRequest{}
-	err := c.Bind(&postRequest)
-	if err != nil {
-		logs.Warn("Failed to parse request data.", zap.Error(err))
-		return c.JSON(http.StatusBadRequest, ResponseStruct{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Data: ErrorMessage{
-				Message: "Failed to parse request data.",
-				Err:     err.Error(),
-			},
-		})
+	_ok, err := Bind(c, &postRequest)
+	if !_ok {
+		return err
 	}
-	logs.Debug("Post struct:", zap.Any("postRequest", postRequest))
 
-	user := model.User{}
-	if postRequest.AuthorID != 0 {
-		user, err = model.FindUserByID(postRequest.AuthorID)
-	} else if postRequest.AuthorEmail != "" {
-		user, err = model.FindUserByEmail(postRequest.AuthorEmail)
-	} else if postRequest.AuthorName != "" {
-		user, err = model.FindUserByName(postRequest.AuthorName)
-	} else {
-		return c.JSON(http.StatusBadRequest, ResponseStruct{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Data: ErrorMessage{
-				Message: "Author ID, email or username is required.",
-				Err:     "",
-			},
-		})
+	user, err, e500 := FindUser(c, model.User{
+		ID:       postRequest.AuthorID,
+		UserName: postRequest.AuthorName,
+		Email:    postRequest.AuthorEmail,
+	})
+	if e500 {
+		return err
 	}
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.JSON(http.StatusBadRequest, ResponseStruct{
-				Code:    http.StatusBadRequest,
-				Message: "Bad Request",
-				Data: ErrorMessage{
-					Message: "User not found.",
-					Err:     err.Error(),
-				},
-			})
-		}
-		return c.JSON(http.StatusInternalServerError, ResponseStruct{
-			Code:    http.StatusInternalServerError,
-			Message: "Internal Server Error",
-			Data: ErrorMessage{
-				Message: "Find user failed.",
-				Err:     err.Error(),
-			},
-		})
+		return ResponseBadRequest(c, "Find user failed.", err)
 	}
 
 	if user.Deleted {
-		return c.JSON(http.StatusBadRequest, ResponseStruct{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Data: ErrorMessage{
-				Message: "This user has been deleted.",
-				Err:     "",
-			},
-		})
+		return ResponseBadRequest(c, "This user has been deleted.", nil)
 	}
 
 	if !user.Verified {
-		return c.JSON(http.StatusBadRequest, ResponseStruct{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Data: ErrorMessage{
-				Message: "This user has not been verified.",
-				Err:     "",
-			},
-		})
+		return ResponseBadRequest(c, "This user has not been verified.", nil)
 	}
 
 	post, err := model.CreatePost(user.ID, time.Now(), postRequest.Content, true)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ResponseStruct{
-			Code:    http.StatusInternalServerError,
-			Message: "Internal Server Error",
-			Data: ErrorMessage{
-				Message: "Failed to create post into database.",
-				Err:     err.Error(),
-			},
-		})
+		return ResponseInternalServerError(c, "Failed to create post into database.", err)
 	}
 
-	return c.JSON(http.StatusOK, ResponseStruct{
-		Code:    http.StatusOK,
-		Message: "OK",
-		Data: PostCreateResponse{
-			Status:   "Create post successfully.",
-			PostID:   post.ID,
-			IsPublic: post.IsPublic,
-		},
+	return ResponseOK(c, PostCreateResponse{
+		Status:   "Create post successfully.",
+		PostID:   post.ID,
+		IsPublic: post.IsPublic,
 	})
 }
 
@@ -152,49 +91,23 @@ func PostGET(c echo.Context) error {
 	logs.Debug("GET /post")
 
 	postRequest := PostGetRequest{}
-	err := c.Bind(&postRequest)
-	if err != nil {
-		logs.Warn("Failed to parse request data.", zap.Error(err))
-		return c.JSON(http.StatusBadRequest, ResponseStruct{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Data: ErrorMessage{
-				Message: "Failed to parse request data.",
-				Err:     err.Error(),
-			},
-		})
+	_ok, err := Bind(c, &postRequest)
+	if !_ok {
+		return err
 	}
-	logs.Debug("Post struct:", zap.Any("postRequest", postRequest))
 
-	user := model.User{}
-	if postRequest.AuthorID != 0 {
-		user, err = model.FindUserByID(postRequest.AuthorID)
-	} else if postRequest.AuthorEmail != "" {
-		user, err = model.FindUserByEmail(postRequest.AuthorEmail)
-	} else if postRequest.AuthorName != "" {
-		user, err = model.FindUserByName(postRequest.AuthorName)
+	user, err, e500 := FindUser(c, model.User{
+		ID:       postRequest.AuthorID,
+		UserName: postRequest.AuthorName,
+		Email:    postRequest.AuthorEmail,
+	})
+	if e500 {
+		return err
+	}
+	if err == gorm.ErrRecordNotFound {
+		return ResponseBadRequest(c, "User not found.", err)
 	} else {
 		user.ID = 0
-	}
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.JSON(http.StatusBadRequest, ResponseStruct{
-				Code:    http.StatusBadRequest,
-				Message: "Bad Request",
-				Data: ErrorMessage{
-					Message: "User not found.",
-					Err:     err.Error(),
-				},
-			})
-		}
-		return c.JSON(http.StatusInternalServerError, ResponseStruct{
-			Code:    http.StatusInternalServerError,
-			Message: "Internal Server Error",
-			Data: ErrorMessage{
-				Message: "Find user failed.",
-				Err:     err.Error(),
-			},
-		})
 	}
 
 	mp := make(map[uint32]model.User)
@@ -204,14 +117,7 @@ func PostGET(c echo.Context) error {
 
 	posts, err := model.GetPostsList(user.ID, time.Unix(postRequest.StartTime, 0), false, postRequest.OrderBy, postRequest.Limit)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ResponseStruct{
-			Code:    http.StatusInternalServerError,
-			Message: "Internal Server Error",
-			Data: ErrorMessage{
-				Message: "Get posts list failed.",
-				Err:     err.Error(),
-			},
-		})
+		return ResponseInternalServerError(c, "Get posts list failed.", err)
 	}
 
 	resp := PostGetResponse{
@@ -235,9 +141,5 @@ func PostGET(c echo.Context) error {
 		})
 	}
 
-	return c.JSON(http.StatusOK, ResponseStruct{
-		Code:    http.StatusOK,
-		Message: "OK",
-		Data:    resp,
-	})
+	return ResponseOK(c, resp)
 }

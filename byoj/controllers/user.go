@@ -5,10 +5,8 @@ import (
 	"byoj/model"
 	"byoj/utils/logs"
 	"errors"
-	"net/http"
 
 	"github.com/labstack/echo"
-	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -38,66 +36,52 @@ func checkUserEmail(email string) error {
 	return nil
 }
 
+func FindUser(c echo.Context, request model.User) (user model.User, err error, isInternalServerError bool) {
+	user = request
+	if request.ID != 0 {
+		user, err = model.FindUserByID(request.ID)
+	} else if request.Email != "" {
+		user, err = model.FindUserByEmail(request.Email)
+	} else if request.UserName != "" {
+		user, err = model.FindUserByName(request.UserName)
+	} else {
+		return user, errors.New("Author ID, email or username is required."), false
+	}
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return user, err, false
+		}
+		return user, ResponseInternalServerError(c, "Find user failed", err), true
+	}
+	return user, nil, false
+}
+
 func UserRegisterPOST(c echo.Context) error {
 	logs.Debug("POST /user/register")
 
 	user := model.User{}
-	err := c.Bind(&user)
-	if err != nil {
-		logs.Warn("Failed to parse request data.", zap.Error(err))
-		return c.JSON(http.StatusBadRequest, ResponseStruct{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Data: ErrorMessage{
-				Message: "Failed to parse request data.",
-				Err:     err.Error(),
-			},
-		})
+	_ok, err := Bind(c, &user)
+	if !_ok {
+		return err
 	}
-	logs.Debug("User struct:", zap.Any("user", user))
 
 	err = checkUserName(user.UserName)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, ResponseStruct{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Data: ErrorMessage{
-				Message: err.Error(),
-				Err:     "",
-			},
-		})
+		return ResponseBadRequest(c, err.Error(), nil)
 	}
 
 	err = checkUserEmail(user.Email)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, ResponseStruct{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Data: ErrorMessage{
-				Message: err.Error(),
-				Err:     "",
-			},
-		})
+		return ResponseBadRequest(c, err.Error(), nil)
 	}
 
 	err = model.UserRegister(user.UserName, user.Email, user.PasswordMD5, user.RealName, user.Bio)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ResponseStruct{
-			Code:    http.StatusInternalServerError,
-			Message: "Internal Server Error",
-			Data: ErrorMessage{
-				Message: "Failed to create user into database.",
-				Err:     err.Error(),
-			},
-		})
+		return ResponseInternalServerError(c, "Failed to create user into database.", err)
 	}
 
-	return c.JSON(http.StatusOK, ResponseStruct{
-		Code:    http.StatusOK,
-		Message: "OK",
-		Data: StatusMessage{
-			Status: "Register successfully.",
-		},
+	return ResponseOK(c, StatusMessage{
+		Status: "Register successfully.",
 	})
 }
 
@@ -114,137 +98,60 @@ func UserLoginPOST(c echo.Context) error {
 	logs.Debug("POST /user/login")
 
 	userRequest := model.User{}
-	err := c.Bind(&userRequest)
-	if err != nil {
-		logs.Warn("Failed to parse request data.", zap.Error(err))
-		return c.JSON(http.StatusBadRequest, ResponseStruct{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Data: ErrorMessage{
-				Message: "Failed to parse request data.",
-				Err:     err.Error(),
-			},
-		})
+	_ok, err := Bind(c, &userRequest)
+	if !_ok {
+		return err
 	}
-	logs.Debug("User struct:", zap.Any("user", userRequest))
 
-	user := model.User{}
-	if userRequest.ID != 0 {
-		user, err = model.FindUserByID(userRequest.ID)
-	} else if userRequest.Email != "" {
-		user, err = model.FindUserByEmail(userRequest.Email)
-	} else if userRequest.UserName != "" {
-		user, err = model.FindUserByName(userRequest.UserName)
-	} else {
-		return c.JSON(http.StatusBadRequest, ResponseStruct{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Data: ErrorMessage{
-				Message: "User ID, email or username is required.",
-				Err:     "",
-			},
-		})
+	user, err, e500 := FindUser(c, model.User{
+		ID:       userRequest.ID,
+		UserName: userRequest.UserName,
+		Email:    userRequest.Email,
+	})
+	if e500 {
+		return err
 	}
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.JSON(http.StatusBadRequest, ResponseStruct{
-				Code:    http.StatusBadRequest,
-				Message: "Bad Request",
-				Data: ErrorMessage{
-					Message: "User not found.",
-					Err:     err.Error(),
-				},
-			})
-		}
-		return c.JSON(http.StatusInternalServerError, ResponseStruct{
-			Code:    http.StatusInternalServerError,
-			Message: "Internal Server Error",
-			Data: ErrorMessage{
-				Message: "Find user failed.",
-				Err:     err.Error(),
-			},
-		})
+		return ResponseBadRequest(c, "Find user failed.", err)
 	}
 
 	if user.Deleted {
-		return c.JSON(http.StatusBadRequest, ResponseStruct{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Data: ErrorMessage{
-				Message: "This user has been deleted.",
-				Err:     "",
-			},
-		})
+		return ResponseBadRequest(c, "This user has been deleted.", nil)
 	}
 
 	if !user.Verified {
-		return c.JSON(http.StatusBadRequest, ResponseStruct{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Data: ErrorMessage{
-				Message: "This user has not been verified.",
-				Err:     "",
-			},
-		})
+		return ResponseBadRequest(c, "This user has not been verified.", nil)
 	}
 
 	if user.PasswordMD5 != userRequest.PasswordMD5 {
-		return c.JSON(http.StatusBadRequest, ResponseStruct{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Data: ErrorMessage{
-				Message: "Wrong password.",
-				Err:     "",
-			},
-		})
+		return ResponseBadRequest(c, "Wrong password.", nil)
 	}
 
 	accessTokenString, accessTokenExpireAt, err := auth.GenerateAccessToken(&user)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ResponseStruct{
-			Code:    http.StatusInternalServerError,
-			Message: "Internal Server Error",
-			Data: ErrorMessage{
-				Message: "Generate access token failed.",
-				Err:     err.Error(),
-			},
-		})
+		return ResponseInternalServerError(c, "Generate access token failed.", err)
 	}
 
 	refreshTokenString, refreshTokenExpireAt, err := auth.GenerateRefreshToken(&user)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ResponseStruct{
-			Code:    http.StatusInternalServerError,
-			Message: "Internal Server Error",
-			Data: ErrorMessage{
-				Message: "Generate refresh token failed.",
-				Err:     err.Error(),
-			},
-		})
+		return ResponseInternalServerError(c, "Generate refresh token failed.", err)
 	}
 
-	return c.JSON(http.StatusOK, ResponseStruct{
-		Code:    http.StatusOK,
-		Message: "OK",
-		Data: UserLoginResponse{
-			ID:                   user.ID,
-			UserName:             user.UserName,
-			AccessToken:          accessTokenString,
-			AccessTokenExpireAt:  accessTokenExpireAt.Unix(),
-			RefreshToken:         refreshTokenString,
-			RefreshTokenExpireAt: refreshTokenExpireAt.Unix(),
-		},
+	return ResponseOK(c, UserLoginResponse{
+		ID:                   user.ID,
+		UserName:             user.UserName,
+		AccessToken:          accessTokenString,
+		AccessTokenExpireAt:  accessTokenExpireAt.Unix(),
+		RefreshToken:         refreshTokenString,
+		RefreshTokenExpireAt: refreshTokenExpireAt.Unix(),
 	})
 }
 
 func UserIsAuthGET(c echo.Context) error {
 	logs.Debug("GET /user/isauth")
-	return c.JSON(http.StatusOK, ResponseStruct{
-		Code:    http.StatusOK,
-		Message: "OK",
-		Data: StatusMessage{
-			Status: "OK",
-		},
+
+	return ResponseOK(c, StatusMessage{
+		Status: "OK",
 	})
 }
 
@@ -262,69 +169,30 @@ func UserGET(c echo.Context) error {
 	logs.Debug("GET /user")
 
 	userRequest := model.User{}
-	err := c.Bind(&userRequest)
-	if err != nil {
-		logs.Warn("Failed to parse request data.", zap.Error(err))
-		return c.JSON(http.StatusBadRequest, ResponseStruct{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Data: ErrorMessage{
-				Message: "Failed to parse request data.",
-				Err:     err.Error(),
-			},
-		})
-	}
-	logs.Debug("User struct:", zap.Any("user", userRequest))
-
-	user := model.User{}
-	if userRequest.ID != 0 {
-		user, err = model.FindUserByID(userRequest.ID)
-	} else if userRequest.Email != "" {
-		user, err = model.FindUserByEmail(userRequest.Email)
-	} else if userRequest.UserName != "" {
-		user, err = model.FindUserByName(userRequest.UserName)
-	} else {
-		return c.JSON(http.StatusBadRequest, ResponseStruct{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Data: ErrorMessage{
-				Message: "User ID, email or username is required.",
-				Err:     "",
-			},
-		})
-	}
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.JSON(http.StatusBadRequest, ResponseStruct{
-				Code:    http.StatusBadRequest,
-				Message: "Bad Request",
-				Data: ErrorMessage{
-					Message: "User not found.",
-					Err:     err.Error(),
-				},
-			})
-		}
-		return c.JSON(http.StatusInternalServerError, ResponseStruct{
-			Code:    http.StatusInternalServerError,
-			Message: "Internal Server Error",
-			Data: ErrorMessage{
-				Message: "Find user failed.",
-				Err:     err.Error(),
-			},
-		})
+	_ok, err := Bind(c, &userRequest)
+	if !_ok {
+		return err
 	}
 
-	return c.JSON(http.StatusOK, ResponseStruct{
-		Code:    http.StatusOK,
-		Message: "OK",
-		Data: UserGETResponse{
-			ID:       user.ID,
-			UserName: user.UserName,
-			Email:    user.Email,
-			RealName: user.RealName,
-			Bio:      user.Bio,
-			Verified: user.Verified,
-			Deleted:  user.Deleted,
-		},
+	user, err, e500 := FindUser(c, model.User{
+		ID:       userRequest.ID,
+		UserName: userRequest.UserName,
+		Email:    userRequest.Email,
+	})
+	if e500 {
+		return err
+	}
+	if err != nil {
+		return ResponseBadRequest(c, "Find user failed.", err)
+	}
+
+	return ResponseOK(c, UserGETResponse{
+		ID:       user.ID,
+		UserName: user.UserName,
+		Email:    user.Email,
+		RealName: user.RealName,
+		Bio:      user.Bio,
+		Verified: user.Verified,
+		Deleted:  user.Deleted,
 	})
 }
